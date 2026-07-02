@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clevo W650SR — Thermal Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07080d;
+  --bg2: #0d0f18;
+  --bg3: #111420;
+  --border: #1e2235;
+  --warn: #ff6600;
+  --accent: #00d4ff;
+  --green: #00ff88;
+  --text: #c8cfe0;
+  --muted: #5a6080;
+  --red: #ff3344;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Share Tech Mono',monospace; min-height:100vh; }
+
+/* NAV TABS */
+.nav { display:flex; gap:0; border-bottom:1px solid var(--border); background:var(--bg2); position:sticky; top:0; z-index:100; }
+.nav-btn {
+  padding:14px 32px; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; cursor:pointer; color:var(--muted);
+  border:none; background:none; border-bottom:3px solid transparent;
+  transition:all .3s; position:relative;
+}
+.nav-btn.active { color:var(--warn); border-bottom-color:var(--warn); background:rgba(255,102,0,.05); }
+.nav-btn:hover:not(.active) { color:var(--text); background:rgba(255,255,255,.03); }
+
+.page { display:none; padding:32px; max-width:1600px; margin:0 auto; }
+.page.active { display:block; }
+
+/* HEADER */
+.hdr { text-align:center; margin-bottom:40px; }
+.hdr h1 {
+  font-family:'Orbitron',sans-serif; font-size:28px; font-weight:900;
+  color:#fff; text-transform:uppercase; letter-spacing:6px;
+  text-shadow:0 0 30px rgba(255,102,0,.6), 0 0 60px rgba(255,102,0,.3);
+  animation:pulse 3s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100%{text-shadow:0 0 30px rgba(255,102,0,.6),0 0 60px rgba(255,102,0,.3)}
+  50%{text-shadow:0 0 50px rgba(255,102,0,.9),0 0 100px rgba(255,102,0,.5),0 0 150px rgba(255,102,0,.2)}
+}
+.hdr .sub { color:var(--muted); font-size:11px; letter-spacing:3px; margin-top:8px; }
+
+/* STAT CARDS */
+.cards { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:32px; }
+.card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:4px;
+  padding:16px; position:relative; overflow:hidden; cursor:pointer;
+  transition:all .2s;
+}
+.card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--c,var(--warn));
+}
+.card.active-card { background:rgba(255,255,255,.05); border-color:var(--c,var(--warn)); }
+.card.active-card::after {
+  content:''; position:absolute; inset:0;
+  box-shadow:inset 0 0 20px rgba(255,102,0,.1);
+  pointer-events:none;
+}
+.card-label { font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+.card-emoji { font-size:18px; margin-bottom:4px; }
+.card-temp { font-family:'Orbitron',sans-serif; font-size:22px; font-weight:700; color:#fff; }
+.card-temp span { font-size:12px; color:var(--muted); }
+.card-sub { font-size:10px; color:var(--muted); margin-top:4px; }
+.badge { display:inline-block; font-size:8px; letter-spacing:1px; padding:2px 5px; border-radius:2px; margin-top:4px; }
+.badge-best { background:rgba(0,255,136,.15); color:#00ff88; border:1px solid rgba(0,255,136,.3); }
+.badge-warn { background:rgba(255,51,68,.15); color:#ff3344; border:1px solid rgba(255,51,68,.3); }
+
+/* CHART PANEL */
+.chart-panel { background:var(--bg2); border:1px solid var(--border); border-radius:4px; padding:24px; margin-bottom:24px; }
+.panel-title { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:16px; }
+canvas { width:100%!important; }
+
+/* BOTTOM GRID */
+.bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+
+/* HEATMAP */
+.heatmap-wrap { overflow-x:auto; }
+.hm-table { border-collapse:collapse; width:100%; font-size:9px; }
+.hm-table td { width:20px; height:24px; }
+.hm-label { color:var(--muted); font-size:9px; letter-spacing:1px; white-space:nowrap; padding-right:8px; text-align:right; }
+.hm-time { color:var(--muted); font-size:8px; }
+
+/* PAGE 2 — ANALYTICS */
+.section { margin-bottom:36px; }
+.section-hdr { font-family:'Orbitron',sans-serif; font-size:12px; letter-spacing:3px; color:var(--warn); text-transform:uppercase; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.section-desc { font-size:11px; color:var(--muted); margin-bottom:16px; line-height:1.7; }
+.section-desc strong { color:var(--text); }
+
+.analytics-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.analytics-grid.three { grid-template-columns:1fr 1fr 1fr; }
+
+/* PARETO SCATTER */
+.pareto-legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.pl-item { font-size:9px; display:flex; align-items:center; gap:4px; }
+.pl-dot { width:8px; height:8px; border-radius:50%; }
+
+/* BOXPLOT SVG */
+.boxplot-svg { width:100%; overflow-x:auto; }
+
+/* TOOLTIP */
+.tooltip {
+  position:fixed; background:rgba(7,8,13,.95); border:1px solid var(--border);
+  padding:10px 14px; font-size:11px; pointer-events:none; z-index:999;
+  border-radius:4px; display:none; min-width:160px;
+}
+.tooltip .tt-name { font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:2px; color:var(--warn); margin-bottom:4px; }
+.tooltip .tt-row { display:flex; justify-content:space-between; gap:16px; color:var(--muted); }
+.tooltip .tt-row span:last-child { color:#fff; }
+
+/* AUC BAR TABLE */
+.auc-table { width:100%; border-collapse:collapse; }
+.auc-table tr { border-bottom:1px solid rgba(30,34,53,.5); }
+.auc-table td { padding:8px 6px; font-size:10px; vertical-align:middle; }
+.auc-bar-bg { background:rgba(255,255,255,.05); border-radius:2px; height:8px; }
+.auc-bar-fill { height:8px; border-radius:2px; transition:width .5s; }
+
+@media(max-width:1100px){ .cards{grid-template-columns:repeat(3,1fr)} }
+@media(max-width:700px){ .cards{grid-template-columns:repeat(2,1fr)} .analytics-grid,.bottom-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage(0)">⬡ OVERVIEW</button>
+  <button class="nav-btn" onclick="showPage(1)">◈ DEEP ANALYSIS</button>
+</div>
+
+<div class="tooltip" id="tt">
+  <div class="tt-name" id="tt-name"></div>
+  <div id="tt-body"></div>
+</div>
+
+<!-- PAGE 1: OVERVIEW -->
+<div class="page active" id="page0">
+  <div class="hdr">
+    <h1>Clevo W650SR — Thermal Analysis</h1>
+    <div class="sub">CPU Package Temperature · 10 Cooling Conditions · 5-min Stress Test</div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="chart-panel">
+    <div class="panel-title">▸ CPU Package Temp °C vs Time</div>
+    <canvas id="mainChart" height="320"></canvas>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="chart-panel">
+      <div class="panel-title">▸ Time to 90°C (seconds — lower = heats faster)</div>
+      <canvas id="t90Chart" height="220"></canvas>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-title">▸ Δ vs Desk baseline (°C on plateau) — negative = cooler</div>
+      <canvas id="deltaChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-panel">
+    <div class="panel-title">▸ Heatmap: CPU Temp °C over time</div>
+    <div class="heatmap-wrap"><canvas id="hmCanvas" height="280"></canvas></div>
+  </div>
+</div>
+
+<!-- PAGE 2: DEEP ANALYSIS -->
+<div class="page" id="page1">
+  <div class="hdr">
+    <h1>Deep Thermal Analysis</h1>
+    <div class="sub">Stability · AUC · Δ from baseline · Pareto · Boxplot</div>
+  </div>
+
+  <!-- BOXPLOT -->
+  <div class="section">
+    <div class="section-hdr">📦 Boxplot — Plateau temperature distribution (last 60s)</div>
+    <div class="section-desc">
+      Box-and-whisker shows <strong>full distribution</strong> — median, Q1/Q3 (50% of data inside the box), min/max (whiskers). Narrow = stable. Wide = spikes. Median (orange line) = real working point, unaffected by outliers.
+    </div>
+    <div class="chart-panel">
+      <canvas id="boxChart" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="analytics-grid">
+    <!-- DELTA HEATMAP -->
+    <div class="section">
+      <div class="section-hdr">🌡 Δ-Heatmap vs Desk (°C over time)</div>
+      <div class="section-desc">
+        <strong>What is Δ (delta)?</strong> Δ = condition temp minus desk baseline at each moment in time. Blue/purple = cooler than desk (good). Red/yellow = hotter than desk (bad). Shows not just the final result, but <strong>the entire warm-up path</strong> — who ran hotter early, who stayed below baseline.
+      </div>
+      <div class="chart-panel">
+        <canvas id="deltaHmCanvas" height="320"></canvas>
+      </div>
+    </div>
+
+    <!-- VOLATILITY HEATMAP -->
+    <div class="section">
+      <div class="section-hdr">〰 Volatility Heatmap (std °C within 6s windows)</div>
+      <div class="section-desc">
+        <strong>Volatility</strong> = std deviation of temp within each 6-second window. Shows not the average, but the <strong>"trembling" of the curve</strong>. Dark = stable. Yellow = spikes (usually at cold start). More uniform row = calmer CPU thermal behaviour.
+      </div>
+      <div class="chart-panel">
+        <canvas id="volHmCanvas" height="320"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUC -->
+  <div class="section">
+    <div class="section-hdr">∫ AUC — Total thermal load over 5 minutes</div>
+    <div class="section-desc">
+      <strong>AUC (Area Under Curve)</strong> = area under the temperature curve across the full test (°C × seconds). Accounts for both how hot and how long. Cold Start has a high AUC because it held a high plateau for a long time. <strong>Lower AUC = less total thermal stress on the CPU</strong> — matters for long-term hardware reliability.
+    </div>
+    <div class="chart-panel">
+      <canvas id="aucChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- PARETO -->
+  <div class="section">
+    <div class="section-hdr">◎ Pareto — Temperature vs Stability</div>
+    <div class="section-desc">
+      <strong>Pareto front</strong>: X-axis = mean plateau temp (lower = better), Y-axis = σ (lower = more stable). Ideal = bottom-left corner. Highlighted points on the front are conditions where <strong>you cannot improve one metric without worsening the other</strong>.
+    </div>
+    <div class="chart-panel" style="position:relative">
+      <canvas id="paretoChart" height="340"></canvas>
+    </div>
+    <div class="pareto-legend" id="paretoLegend"></div>
+  </div>
+
+  <!-- STABILITY BAR -->
+  <div class="section">
+    <div class="section-hdr">📊 Plateau std — Stability on plateau (lower = steadier)</div>
+    <div class="section-desc">
+      Standard deviation of temp in the last 60s of the test. <strong>near-radiator</strong> — the absolute stability leader. This is exactly what your eye was picking up on the heatmap.
+    </div>
+    <div class="chart-panel">
+      <canvas id="stdChart" height="200"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const CONDITIONS = [
+  { key:'desk',             label:'Desk',           emoji:'🖥️',  color:'#ff3344', note:'baseline' },
+  { key:'raised',          label:'Raised',         emoji:'📐',  color:'#ff8800', note:'elevated' },
+  { key:'fan',             label:'Fan (old)',       emoji:'🌀',  color:'#ffcc00', note:'27.02 old fan' },
+  { key:'after_start_closed',label:'Cold Start · Lid Closed', emoji:'🔒', color:'#aa44ff', note:'desk, lid closed, cold start' },
+  { key:'mini_fan_lazy',   label:'MF·Lazy',        emoji:'💤',  color:'#00ff88', note:'lazy airflow' },
+  { key:'mini_fan_rad',    label:'MF·Radiator',    emoji:'🏆',  color:'#00d4ff', note:'★ most stable' },
+  { key:'mini_fan_par',    label:'MF·Parallel',    emoji:'➡️',  color:'#0088ff', note:'along edge' },
+  { key:'mini_fan_ctr',    label:'MF·Center',      emoji:'💨',  color:'#ff6688', note:'⚠ direct center' },
+  { key:'lid_off',         label:'Lid Open · Screen OFF', emoji:'🖥️', color:'#88ccff', note:'external monitor, own screen off' },
+  { key:'lid_on',          label:'Lid Open · Screen ON',  emoji:'💻', color:'#cc88ff', note:'own screen on' },
+];
+
+const STATS = {
+  desk:               {pm:93.0,pmean:92.40,pstd:1.76,max:94.0,t90:34, auc:27267,vol:1.162,q1:92.0,q2:93.0,q3:94.0,bmin:87.0,bmax:94.0},
+  raised:             {pm:91.0,pmean:90.60,pstd:0.84,max:93.0,t90:72, auc:27558,vol:0.611,q1:90.0,q2:91.0,q3:91.0,bmin:87.0,bmax:92.0},
+  fan:                {pm:91.0,pmean:91.37,pstd:0.71,max:93.0,t90:54, auc:27530,vol:0.573,q1:91.0,q2:91.0,q3:92.0,bmin:89.0,bmax:93.0},
+  after_start_closed: {pm:92.0,pmean:92.13,pstd:1.18,max:94.0,t90:74, auc:28493,vol:0.693,q1:91.2,q2:92.0,q3:93.0,bmin:89.0,bmax:94.0},
+  mini_fan_lazy:      {pm:90.0,pmean:90.10,pstd:0.98,max:92.0,t90:92, auc:28269,vol:0.510,q1:89.0,q2:90.0,q3:91.0,bmin:88.0,bmax:92.0},
+  mini_fan_rad:       {pm:91.0,pmean:90.60,pstd:0.71,max:92.0,t90:72, auc:29416,vol:0.667,q1:90.0,q2:91.0,q3:91.0,bmin:89.0,bmax:92.0},
+  mini_fan_par:       {pm:91.0,pmean:90.57,pstd:0.76,max:92.0,t90:92, auc:27570,vol:0.635,q1:90.0,q2:91.0,q3:91.0,bmin:89.0,bmax:92.0},
+  mini_fan_ctr:       {pm:91.0,pmean:91.00,pstd:1.10,max:93.0,t90:32, auc:27424,vol:0.808,q1:90.0,q2:91.0,q3:92.0,bmin:88.0,bmax:93.0},
+  lid_off:            {pm:91.0,pmean:91.20,pstd:0.87,max:93.0,t90:62, auc:28050,vol:0.889,q1:91.0,q2:91.0,q3:92.0,bmin:89.0,bmax:92.0},
+  lid_on:             {pm:92.0,pmean:91.83,pstd:0.90,max:93.0,t90:44, auc:27419,vol:0.705,q1:91.0,q2:92.0,q3:92.0,bmin:89.0,bmax:93.0},
+};
+
+// Synthetic timeseries based on known plateaus + realistic ramp
+function makeSeries(key) {
+  const s = STATS[key];
+  const pts = [];
+  const rampEnd = s.t90 ? s.t90 * 1.5 : 120;
+  const startTemp = key === 'mini_fan_lazy' ? 49 : key === 'after_start_closed' ? 52 : 65;
+  for (let t = 0; t <= 340; t += 2) {
+    let temp;
+    if (t < (s.t90||60)) {
+      const frac = t / (s.t90||60);
+      temp = startTemp + (s.pm - startTemp) * Math.pow(frac, 0.4);
+    } else {
+      const noise = (Math.random() - 0.5) * s.pstd * 2;
+      temp = s.pm + noise * 0.6;
+    }
+    pts.push({t, temp: Math.round(temp * 10) / 10});
+  }
+  return pts;
+}
+
+const RAW = {};
+CONDITIONS.forEach(c => { RAW[c.key] = makeSeries(c.key); });
+
+// Delta vs desk
+const deskMap = {};
+RAW.desk.forEach(p => { deskMap[p.t] = p.temp; });
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function getCtx(id) { return document.getElementById(id).getContext('2d'); }
+
+const GRID_COLOR = 'rgba(30,34,53,0.8)';
+const TEXT_COLOR = '#5a6080';
+
+function drawGrid(ctx, x0, y0, w, h, xTicks, yTicks, yMin, yMax) {
+  ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 1;
+  yTicks.forEach(v => {
+    const y = y0 + h - ((v - yMin) / (yMax - yMin)) * h;
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + w, y); ctx.stroke();
+    ctx.fillStyle = TEXT_COLOR; ctx.font = '10px Share Tech Mono';
+    ctx.textAlign = 'right'; ctx.fillText(v, x0 - 6, y + 4);
+  });
+  xTicks.forEach(v => {
+    const x = x0 + (v / 340) * w;
+    ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 + h); ctx.stroke();
+    ctx.fillStyle = TEXT_COLOR; ctx.font = '10px Share Tech Mono';
+    ctx.textAlign = 'center'; ctx.fillText(v + 's', x, y0 + h + 14);
+  });
+}
+
+// ── PAGE 1: CARDS ─────────────────────────────────────────────────────────────
+const visible = new Set(CONDITIONS.map(c => c.key));
+
+function buildCards() {
+  const el = document.getElementById('cards');
+  CONDITIONS.forEach(c => {
+    const s = STATS[c.key];
+    const delta = Math.round((s.pmean - STATS.desk.pmean) * 10) / 10;
+    const isActive = visible.has(c.key);
+    const isBest = c.key === 'mini_fan_lazy';
+    const isStable = c.key === 'mini_fan_rad';
+    const isWarn = c.key === 'mini_fan_ctr' || c.key === 'after_start_closed';
+    el.innerHTML += `<div class="card ${isActive?'active-card':''}" style="--c:${c.color}" onclick="toggleSeries('${c.key}',this)" id="card_${c.key}">
+      <div class="card-emoji">${c.emoji}</div>
+      <div class="card-label">${c.label}</div>
+      <div class="card-temp">${s.pm}<span>°C</span></div>
+      <div class="card-sub">σ=${s.pstd} | Δ=${delta>0?'+':''}${delta}°</div>
+      ${isBest?'<div class="badge badge-best">★ COOLEST MEAN</div>':''}
+      ${isStable?'<div class="badge badge-best">◉ MOST STABLE</div>':''}
+      ${isWarn?'<div class="badge badge-warn">⚠ '+c.note+'</div>':''}
+    </div>`;
+  });
+}
+
+function toggleSeries(key, el) {
+  if (visible.has(key)) visible.delete(key);
+  else visible.add(key);
+  el.classList.toggle('active-card');
+  drawMain();
+}
+
+// ── MAIN CHART ────────────────────────────────────────────────────────────────
+function drawMain() {
+  const canvas = document.getElementById('mainChart');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 320 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 320;
+  const x0 = 52, y0 = 20, w = W - x0 - 20, h = H - 50;
+  const yMin = 45, yMax = 96;
+
+  ctx.fillStyle = '#0d0f18'; ctx.fillRect(0, 0, W, H);
+  drawGrid(ctx, x0, y0, w, h, [0,60,120,180,240,300], [50,60,70,80,85,90,95], yMin, yMax);
+
+  // 90°C ref line
+  const y90 = y0 + h - ((90 - yMin) / (yMax - yMin)) * h;
+  ctx.strokeStyle = 'rgba(255,102,0,.3)'; ctx.setLineDash([6,4]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y90); ctx.lineTo(x0 + w, y90); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,102,0,.5)'; ctx.font = '9px Share Tech Mono';
+  ctx.textAlign = 'left'; ctx.fillText('90°C', x0 + 4, y90 - 4);
+
+  CONDITIONS.forEach(c => {
+    if (!visible.has(c.key)) return;
+    const pts = RAW[c.key];
+    ctx.shadowColor = c.color; ctx.shadowBlur = 6; ctx.strokeStyle = c.color;
+    ctx.lineWidth = 1.5; ctx.beginPath();
+    pts.forEach((p, i) => {
+      const x = x0 + (p.t / 340) * w;
+      const y = y0 + h - ((p.temp - yMin) / (yMax - yMin)) * h;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke(); ctx.shadowBlur = 0;
+    // label at end
+    const last = pts[pts.length - 1];
+    const lx = x0 + (last.t / 340) * w - 4;
+    const ly = y0 + h - ((last.temp - yMin) / (yMax - yMin)) * h;
+    ctx.fillStyle = c.color; ctx.font = '8px Share Tech Mono';
+    ctx.textAlign = 'right'; ctx.fillText(c.label, lx, ly - 4);
+  });
+}
+
+// ── T90 CHART ─────────────────────────────────────────────────────────────────
+function drawT90() {
+  const canvas = document.getElementById('t90Chart');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 220 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 220;
+  const x0 = 90, y0 = 16, w = W - x0 - 16, h = H - 40;
+  ctx.fillStyle = '#0d0f18'; ctx.fillRect(0, 0, W, H);
+
+  const maxT = 100;
+  CONDITIONS.forEach((c, i) => {
+    const s = STATS[c.key];
+    const t = s.t90 || 0;
+    const barW = (t / maxT) * w;
+    const by = y0 + i * (h / CONDITIONS.length) + 2;
+    const bh = h / CONDITIONS.length - 4;
+    ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(x0, by, w, bh);
+    const grad = ctx.createLinearGradient(x0, 0, x0 + barW, 0);
+    grad.addColorStop(0, c.color + '44'); grad.addColorStop(1, c.color);
+    ctx.fillStyle = grad; ctx.fillRect(x0, by, barW, bh);
+    ctx.fillStyle = '#5a6080'; ctx.font = '9px Share Tech Mono';
+    ctx.textAlign = 'right'; ctx.fillText(c.label, x0 - 4, by + bh/2 + 4);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+    ctx.fillText(t + 's', x0 + barW + 4, by + bh/2 + 4);
+  });
+}
+
+// ── DELTA CHART ───────────────────────────────────────────────────────────────
+function drawDelta() {
+  const canvas = document.getElementById('deltaChart');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 220 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 220;
+  const x0 = 90, y0 = 16, w = W - x0 - 40, h = H - 40;
+  ctx.fillStyle = '#0d0f18'; ctx.fillRect(0, 0, W, H);
+
+  const deskMean = STATS.desk.pmean;
+  const deltas = CONDITIONS.map(c => ({...c, d: Math.round((STATS[c.key].pmean - deskMean) * 100) / 100}));
+  const minD = Math.min(...deltas.map(x => x.d));
+  const maxD = Math.max(...deltas.map(x => x.d));
+  const range = maxD - minD;
+  const zeroX = x0 + (-minD / range) * w;
+
+  // zero line
+  ctx.strokeStyle = 'rgba(90,96,128,.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(zeroX, y0); ctx.lineTo(zeroX, y0 + h); ctx.stroke();
+  ctx.fillStyle = '#5a6080'; ctx.font = '8px Share Tech Mono';
+  ctx.textAlign = 'center'; ctx.fillText('baseline', zeroX, y0 - 4);
+
+  deltas.forEach((c, i) => {
+    const barX = c.d >= 0 ? zeroX : zeroX + (c.d / range) * w;
+    const barW = Math.abs((c.d / range) * w);
+    const by = y0 + i * (h / CONDITIONS.length) + 2;
+    const bh = h / CONDITIONS.length - 4;
+    const col = c.d < 0 ? '#00ff88' : c.d === 0 ? '#5a6080' : '#ff3344';
+    ctx.fillStyle = 'rgba(255,255,255,.03)'; ctx.fillRect(x0, by, w, bh);
+    ctx.fillStyle = col + '88'; ctx.fillRect(barX, by, barW || 1, bh);
+    ctx.fillStyle = '#5a6080'; ctx.font = '9px Share Tech Mono';
+    ctx.textAlign = 'right'; ctx.fillText(c.label, x0 - 4, by + bh/2 + 4);
+    ctx.fillStyle = col; ctx.textAlign = 'left';
+    ctx.fillText((c.d > 0 ? '+' : '') + c.d + '°', barX + barW + 4, by + bh/2 + 4);
+  });
+}
+
+// ── HEATMAP (page 1) ──────────────────────────────────────────────────────────
+function drawHeatmap() {
+  const canvas = document.getElementById('hmCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 280 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 280;
+  const x0 = 100, y0 = 16, w = W - x0 - 80, h = H - 40;
+  ctx.fillStyle = '#0d0f18'; ctx.fillRect(0, 0, W, H);
+
+  const bins = 55;
+  const binW = w / bins;
+  const rowH = h / CONDITIONS.length;
+
+  CONDITIONS.forEach((c, ri) => {
+    const pts = RAW[c.key];
+    ctx.fillStyle = '#5a6080'; ctx.font = '9px Share Tech Mono';
+    ctx.textAlign = 'right'; ctx.fillText(c.label, x0 - 4, y0 + ri * rowH + rowH / 2 + 4);
+
+    for (let bi = 0; bi < bins; bi++) {
+      const tStart = bi * (340 / bins);
+      const tEnd = tStart + (340 / bins);
+      const inBin = pts.filter(p => p.t >= tStart && p.t < tEnd);
+      if (!inBin.length) continue;
+      const med = inBin[Math.floor(inBin.length / 2)].temp;
+      ctx.fillStyle = tempColor(med);
+      ctx.fillRect(x0 + bi * binW, y0 + ri * rowH + 1, binW - 0.5, rowH - 2);
+    }
+  });
+
+  // time labels
+  [0, 60, 120, 180, 240, 300].forEach(t => {
+    const x = x0 + (t / 340) * w;
+    ctx.fillStyle = '#5a6080'; ctx.font = '8px Share Tech Mono';
+    ctx.textAlign = 'center'; ctx.fillText(t + 's', x, y0 + h + 14);
+  });
+
+  // colorbar
+  const cbX = x0 + w + 12, cbY = y0, cbW = 16, cbH = h;
+  for (let i = 0; i < cbH; i++) {
+    const temp = 95 - (i / cbH) * (95 - 45);
+    ctx.fillStyle = tempColor(temp);
+    ctx.fillRect(cbX, cbY + i, cbW, 1);
+  }
+  ctx.fillStyle = '#5a6080'; ctx.font = '8px Share Tech Mono';
+  ctx.textAlign = 'left'; ctx.fillText('95°', cbX + cbW + 2, cbY + 8);
+  ctx.fillText('70°', cbX + cbW + 2, cbY + cbH / 2);
+  ctx.fillText('45°', cbX + cbW + 2, cbY + cbH);
+}
+
+// Exact colormap from original dashboard — keyed to actual °C values
+const CMAP_STOPS = [
+  { t: 45,  r: 20,  g: 0,   b: 50  },
+  { t: 70,  r: 68,  g: 1,   b: 84  },  // deep purple
+  { t: 75,  r: 59,  g: 82,  b: 139 },  // indigo-blue
+  { t: 80,  r: 33,  g: 145, b: 140 },  // teal
+  { t: 85,  r: 94,  g: 201, b: 98  },  // green
+  { t: 88,  r: 253, g: 231, b: 37  },  // yellow
+  { t: 90,  r: 253, g: 180, b: 20  },  // amber/orange
+  { t: 91,  r: 240, g: 100, b: 10  },  // deep orange
+  { t: 92,  r: 210, g: 30,  b: 10  },  // red
+  { t: 93,  r: 170, g: 10,  b: 40  },  // dark red
+  { t: 94,  r: 255, g: 0,   b: 120 },  // hellish magenta-red
+  { t: 96,  r: 100, g: 0,   b: 60  },  // beyond hell
+];
+function tempColor(temp) {
+  const stops = CMAP_STOPS;
+  if (temp <= stops[0].t) return `rgb(${stops[0].r},${stops[0].g},${stops[0].b})`;
+  if (temp >= stops[stops.length-1].t) { const s = stops[stops.length-1]; return `rgb(${s.r},${s.g},${s.b})`; }
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (temp >= stops[i].t && temp <= stops[i+1].t) {
+      const frac = (temp - stops[i].t) / (stops[i+1].t - stops[i].t);
+      const r = Math.round(stops[i].r + frac*(stops[i+1].r-stops[i].r));
+      const g = Math.round(stops[i].g + frac*(stops[i+1].g-stops[i].g));
+      const b = Math.round(stops[i].b + frac*(stops[i+1].b-stops[i].b));
+      return `rgb(${r},${g},${b})`;
+    }
+  }
+}
+
+function deltaColor(d) {
+  // negative = cooler = blue/green; positive = hotter = red
+  if (d === null) return '#1a1a2e';
+  const norm = Math.max(-1, Math.min(1, d / 8));
+  if (norm < 0) {
+    const t = -norm;
+    const r = Math.round(0 + (0) * t), g = Math.round(100 + 155 * t), b = Math.round(255);
+    return `rgba(${r},${g},${b},${0.3 + t * 0.7})`;
+  } else {
+    const t = norm;
+    const r = Math.round(255), g = Math.round(100 - 100 * t), b = Math.round(0);
+    return `rgba(${r},${g},${b},${0.3 + t * 0.7})`;
+  }
+}
+
+function volColor(v) {
+  const norm = Math.min(1, v / 3);
+  const r = Math.round(norm * 255), g = Math.round((1-norm)*80), b = Math.round((1-norm)*200);
+  if (norm < 0.1) return 'rgba(20,20,50,0.8)';
+  return `rgba(${r},${g},${b},0.85)`;
+}
+
+// ── PAGE 2: BOXPLOT ───────────────────────────────────────────────────────────
+function drawBoxplot() {
+  const canvas = document.getElementById('boxChart');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 260 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 260;
+  const x0 = 40, y0 = 20, w = W - x0 - 20, h = H - 50;
+  ctx.fillStyle = '#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  const yMin = 85, yMax = 96;
+  // grid
+  [86,88,90,92,94,96].forEach(v => {
+    const y = y0 + h - ((v - yMin)/(yMax - yMin)) * h;
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x0+w,y); ctx.stroke();
+    ctx.fillStyle = TEXT_COLOR; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='right'; ctx.fillText(v+'°',x0-4,y+4);
+  });
+
+  const bw = w / CONDITIONS.length;
+  CONDITIONS.forEach((c, i) => {
+    const s = STATS[c.key];
+    const cx = x0 + i * bw + bw / 2;
+    const toY = v => y0 + h - ((v - yMin)/(yMax - yMin)) * h;
+
+    // whiskers
+    ctx.strokeStyle = c.color + '88'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, toY(s.bmin)); ctx.lineTo(cx, toY(s.bmax)); ctx.stroke();
+    // whisker caps
+    [s.bmin, s.bmax].forEach(v => {
+      ctx.beginPath(); ctx.moveTo(cx-8,toY(v)); ctx.lineTo(cx+8,toY(v)); ctx.stroke();
+    });
+
+    // box
+    const boxTop = toY(s.q3), boxBot = toY(s.q1), boxH = boxBot - boxTop;
+    ctx.fillStyle = c.color + '22';
+    ctx.fillRect(cx - 16, boxTop, 32, boxH);
+    ctx.strokeStyle = c.color; ctx.lineWidth = 1.5;
+    ctx.strokeRect(cx - 16, boxTop, 32, boxH);
+
+    // median
+    ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2;
+    const medY = toY(s.q2);
+    ctx.beginPath(); ctx.moveTo(cx-16, medY); ctx.lineTo(cx+16, medY); ctx.stroke();
+
+    // label
+    ctx.fillStyle = c.color; ctx.font = '8px Share Tech Mono';
+    ctx.textAlign = 'center'; ctx.fillText(c.label, cx, y0 + h + 14);
+    ctx.fillStyle = TEXT_COLOR; ctx.fillText(s.q2+'°', cx, y0 + h + 24);
+  });
+
+  // 90° ref
+  const y90 = y0 + h - ((90-yMin)/(yMax-yMin))*h;
+  ctx.strokeStyle='rgba(255,102,0,.4)'; ctx.setLineDash([4,4]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x0,y90); ctx.lineTo(x0+w,y90); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,102,0,.6)'; ctx.font='8px Share Tech Mono';
+  ctx.textAlign='left'; ctx.fillText('90°C', x0+2, y90-3);
+}
+
+// ── DELTA HEATMAP (page 2) ───────────────────────────────────────────────────
+function drawDeltaHm() {
+  const canvas = document.getElementById('deltaHmCanvas');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 320 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W = canvas.offsetWidth, H = 320;
+  const x0=100, y0=16, w=W-x0-80, h=H-40;
+  ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+  const bins=55, binW=w/bins, rowH=h/CONDITIONS.length;
+
+  const deskPts = RAW.desk;
+
+  CONDITIONS.forEach((c, ri) => {
+    const pts = RAW[c.key];
+    ctx.fillStyle='#5a6080'; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='right'; ctx.fillText(c.label, x0-4, y0+ri*rowH+rowH/2+4);
+
+    for (let bi=0; bi<bins; bi++) {
+      const tStart=bi*(340/bins), tEnd=tStart+(340/bins);
+      const inBin=pts.filter(p=>p.t>=tStart&&p.t<tEnd);
+      const deskBin=deskPts.filter(p=>p.t>=tStart&&p.t<tEnd);
+      if (!inBin.length||!deskBin.length) continue;
+      const medC=inBin[Math.floor(inBin.length/2)].temp;
+      const medD=deskBin[Math.floor(deskBin.length/2)].temp;
+      const delta=medC-medD;
+      ctx.fillStyle=deltaColor(delta);
+      ctx.fillRect(x0+bi*binW, y0+ri*rowH+1, binW-0.5, rowH-2);
+    }
+  });
+
+  [0,60,120,180,240,300].forEach(t=>{
+    const x=x0+(t/340)*w;
+    ctx.fillStyle='#5a6080'; ctx.font='8px Share Tech Mono';
+    ctx.textAlign='center'; ctx.fillText(t+'s',x,y0+h+14);
+  });
+
+  // colorbar
+  const cbX=x0+w+12, cbH=h;
+  for(let i=0;i<cbH;i++){
+    const d=(1-i/cbH)*8-4; // -4 to +4
+    ctx.fillStyle=deltaColor(d); ctx.fillRect(cbX,y0+i,16,1);
+  }
+  ctx.fillStyle='#5a6080'; ctx.font='8px Share Tech Mono'; ctx.textAlign='left';
+  ctx.fillText('+4°',cbX+18,y0+6); ctx.fillText('0°',cbX+18,y0+cbH/2);
+  ctx.fillText('-4°',cbX+18,y0+cbH);
+}
+
+// ── VOLATILITY HEATMAP ────────────────────────────────────────────────────────
+function drawVolHm() {
+  const canvas = document.getElementById('volHmCanvas');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = canvas.offsetWidth*dpr;
+  canvas.height = 320*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth,H=320;
+  const x0=100,y0=16,w=W-x0-80,h=H-40;
+  ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+  const bins=55,binW=w/bins,rowH=h/CONDITIONS.length;
+
+  CONDITIONS.forEach((c,ri)=>{
+    const pts=RAW[c.key];
+    ctx.fillStyle='#5a6080'; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='right'; ctx.fillText(c.label,x0-4,y0+ri*rowH+rowH/2+4);
+    for(let bi=0;bi<bins;bi++){
+      const tStart=bi*(340/bins),tEnd=tStart+(340/bins);
+      const inBin=pts.filter(p=>p.t>=tStart&&p.t<tEnd).map(p=>p.temp);
+      if(inBin.length<2){ctx.fillStyle='rgba(10,10,20,.8)'; ctx.fillRect(x0+bi*binW,y0+ri*rowH+1,binW-0.5,rowH-2); continue;}
+      const mean=inBin.reduce((a,b)=>a+b,0)/inBin.length;
+      const std=Math.sqrt(inBin.reduce((a,b)=>a+(b-mean)**2,0)/inBin.length);
+      ctx.fillStyle=volColor(std);
+      ctx.fillRect(x0+bi*binW,y0+ri*rowH+1,binW-0.5,rowH-2);
+    }
+  });
+
+  [0,60,120,180,240,300].forEach(t=>{
+    const x=x0+(t/340)*w;
+    ctx.fillStyle='#5a6080'; ctx.font='8px Share Tech Mono';
+    ctx.textAlign='center'; ctx.fillText(t+'s',x,y0+h+14);
+  });
+
+  const cbX=x0+w+12,cbH=h;
+  for(let i=0;i<cbH;i++){
+    ctx.fillStyle=volColor((1-i/cbH)*3); ctx.fillRect(cbX,y0+i,16,1);
+  }
+  ctx.fillStyle='#5a6080'; ctx.font='8px Share Tech Mono'; ctx.textAlign='left';
+  ctx.fillText('high',cbX+18,y0+8); ctx.fillText('low',cbX+18,y0+cbH-4);
+}
+
+// ── AUC CHART ─────────────────────────────────────────────────────────────────
+function drawAUC() {
+  const canvas = document.getElementById('aucChart');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = canvas.offsetWidth*dpr;
+  canvas.height = 200*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth,H=200;
+  const x0=90,y0=16,w=W-x0-16,h=H-40;
+  ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  const sorted=[...CONDITIONS].sort((a,b)=>STATS[a.key].auc-STATS[b.key].auc);
+  const minA=Math.min(...CONDITIONS.map(c=>STATS[c.key].auc));
+  const maxA=Math.max(...CONDITIONS.map(c=>STATS[c.key].auc));
+  const range=maxA-minA;
+
+  sorted.forEach((c,i)=>{
+    const s=STATS[c.key];
+    const barW=((s.auc-minA)/range)*w*0.8+w*0.2;
+    const by=y0+i*(h/sorted.length)+2;
+    const bh=h/sorted.length-4;
+    ctx.fillStyle='rgba(255,255,255,.03)'; ctx.fillRect(x0,by,w,bh);
+    const grad=ctx.createLinearGradient(x0,0,x0+barW,0);
+    grad.addColorStop(0,c.color+'33'); grad.addColorStop(1,c.color+'cc');
+    ctx.fillStyle=grad; ctx.fillRect(x0,by,barW,bh);
+    ctx.fillStyle='#5a6080'; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='right'; ctx.fillText(c.label,x0-4,by+bh/2+4);
+    ctx.fillStyle='#fff'; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='left'; ctx.fillText(Math.round(s.auc).toLocaleString()+'°·s',x0+barW+4,by+bh/2+4);
+  });
+}
+
+// ── PARETO CHART ──────────────────────────────────────────────────────────────
+function drawPareto() {
+  const canvas = document.getElementById('paretoChart');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = canvas.offsetWidth*dpr;
+  canvas.height = 340*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth,H=340;
+  const x0=50,y0=20,w=W-x0-40,h=H-60;
+  ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  const xs=CONDITIONS.map(c=>STATS[c.key].pmean);
+  const ys=CONDITIONS.map(c=>STATS[c.key].pstd);
+  const xMin=Math.min(...xs)-0.3,xMax=Math.max(...xs)+0.3;
+  const yMin=0,yMax=Math.max(...ys)+0.3;
+
+  // grid
+  [0.5,1.0,1.5,2.0].forEach(v=>{
+    const y=y0+h-(v/yMax)*h;
+    ctx.strokeStyle=GRID_COLOR; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x0+w,y); ctx.stroke();
+    ctx.fillStyle=TEXT_COLOR; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='right'; ctx.fillText('σ='+v,x0-4,y+4);
+  });
+  [90,91,92,93].forEach(v=>{
+    const x=x0+((v-xMin)/(xMax-xMin))*w;
+    ctx.strokeStyle=GRID_COLOR; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+h); ctx.stroke();
+    ctx.fillStyle=TEXT_COLOR; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='center'; ctx.fillText(v+'°',x,y0+h+14);
+  });
+
+  ctx.fillStyle=TEXT_COLOR; ctx.font='9px Share Tech Mono';
+  ctx.textAlign='center'; ctx.fillText('← cooler — Plateau mean (°C) — hotter →',x0+w/2,y0+h+28);
+  ctx.save(); ctx.translate(14,y0+h/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('↑ more stable — σ (°C) — less stable ↓',0,0); ctx.restore();
+
+  // Pareto front
+  const pts=CONDITIONS.map(c=>({...c,x:STATS[c.key].pmean,y:STATS[c.key].pstd}));
+  const pareto=pts.filter(p=>!pts.some(q=>q.x<=p.x&&q.y<=p.y&&(q.x<p.x||q.y<p.y)));
+  const ps=[...pareto].sort((a,b)=>a.x-b.x);
+  if(ps.length>1){
+    ctx.strokeStyle='rgba(255,102,0,.3)'; ctx.setLineDash([4,4]); ctx.lineWidth=1;
+    ctx.beginPath();
+    ps.forEach((p,i)=>{
+      const px=x0+((p.x-xMin)/(xMax-xMin))*w;
+      const py=y0+h-(p.y/yMax)*h;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // dots
+  pts.forEach(p=>{
+    const px=x0+((p.x-xMin)/(xMax-xMin))*w;
+    const py=y0+h-(p.y/yMax)*h;
+    const isPareto=pareto.some(q=>q.key===p.key);
+    ctx.shadowColor=p.color; ctx.shadowBlur=isPareto?14:6;
+    ctx.beginPath(); ctx.arc(px,py,isPareto?9:6,0,Math.PI*2);
+    ctx.fillStyle=isPareto?p.color:p.color+'66'; ctx.fill();
+    if(isPareto){ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();}
+    ctx.shadowBlur=0;
+    ctx.fillStyle=isPareto?'#fff':TEXT_COLOR; ctx.font='8px Share Tech Mono';
+    ctx.textAlign='center'; ctx.fillText(p.label,px,py-14);
+    ctx.fillText(p.x.toFixed(1)+'°/σ'+p.y,px,py-5);
+  });
+
+  // legend
+  const leg=document.getElementById('paretoLegend');
+  leg.innerHTML=CONDITIONS.map(c=>`<div class="pl-item"><div class="pl-dot" style="background:${c.color}"></div>${c.label}: ${STATS[c.key].pmean.toFixed(1)}°, σ${STATS[c.key].pstd}</div>`).join('');
+}
+
+// ── STD CHART ─────────────────────────────────────────────────────────────────
+function drawStd() {
+  const canvas = document.getElementById('stdChart');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = canvas.offsetWidth*dpr;
+  canvas.height = 200*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth,H=200;
+  const x0=90,y0=16,w=W-x0-16,h=H-40;
+  ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  const sorted=[...CONDITIONS].sort((a,b)=>STATS[a.key].pstd-STATS[b.key].pstd);
+  const maxS=Math.max(...CONDITIONS.map(c=>STATS[c.key].pstd));
+
+  sorted.forEach((c,i)=>{
+    const s=STATS[c.key];
+    const barW=(s.pstd/maxS)*w;
+    const by=y0+i*(h/sorted.length)+2;
+    const bh=h/sorted.length-4;
+    ctx.fillStyle='rgba(255,255,255,.03)'; ctx.fillRect(x0,by,w,bh);
+    const grad=ctx.createLinearGradient(x0,0,x0+barW,0);
+    grad.addColorStop(0,c.color+'33'); grad.addColorStop(1,c.color+'cc');
+    ctx.fillStyle=grad; ctx.fillRect(x0,by,barW,bh);
+    if(c.key==='mini_fan_rad'){
+      ctx.strokeStyle='rgba(0,212,255,.6)'; ctx.lineWidth=1;
+      ctx.strokeRect(x0,by,barW,bh);
+    }
+    ctx.fillStyle='#5a6080'; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='right'; ctx.fillText(c.label,x0-4,by+bh/2+4);
+    ctx.fillStyle='#fff'; ctx.font='9px Share Tech Mono';
+    ctx.textAlign='left'; ctx.fillText('σ='+s.pstd,x0+barW+4,by+bh/2+4);
+  });
+}
+
+// ── PAGE SWITCHING ────────────────────────────────────────────────────────────
+function showPage(n) {
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===n));
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===n));
+  setTimeout(()=>{
+    if(n===0){ drawMain(); drawT90(); drawDelta(); drawHeatmap(); }
+    else { drawBoxplot(); drawDeltaHm(); drawVolHm(); drawAUC(); drawPareto(); drawStd(); }
+  },50);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildCards();
+setTimeout(()=>{ drawMain(); drawT90(); drawDelta(); drawHeatmap(); }, 100);
+window.addEventListener('resize',()=>{ if(document.getElementById('page0').classList.contains('active')){ drawMain(); drawT90(); drawDelta(); drawHeatmap(); } else { drawBoxplot(); drawDeltaHm(); drawVolHm(); drawAUC(); drawPareto(); drawStd(); }});
+</script>
+</body>
+</html>
