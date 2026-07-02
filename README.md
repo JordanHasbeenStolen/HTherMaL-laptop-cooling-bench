@@ -46,7 +46,7 @@ Analysis stack: **Python · pandas · numpy · matplotlib**
 
 ## Study I — Three baseline conditions
 
-→ *[Full Phase 1 report](phase1/REPORT.md)*
+→ *[Full Phase 1 report](pHase1🐰/REPORT.md)*
 
 | Condition | Plateau mean | Max | Time to 90°C |
 |-----------|-------------|-----|-------------|
